@@ -8,7 +8,7 @@ app.post("/xpub", (req, res) => {
   try {
     const mnemonic = req.body.mnemonic;
 
-    if (!ethers.utils.isValidMnemonic(mnemonic)) {
+    if (!ethers.utils.HDNode.isValidMnemonic(mnemonic)) {
       return res.status(400).json({ error: "Invalid mnemonic" });
     }
 
