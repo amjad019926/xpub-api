@@ -17,7 +17,7 @@ const pathMap = {
   btc: "m/84'/0'/0'/0",
   eth: "m/44'/60'/0'/0",
   bnb: "m/44'/60'/0'/0",
-  usdt: "m/44'/60'/0'/0", // BEP20 = BNB path
+  usdt: "m/44'/60'/0'/0",
   trx: "m/44'/195'/0'/0",
   sol: "m/44'/501'/0'/0",
   ltc: "m/84'/2'/0'/0",
@@ -85,8 +85,8 @@ app.post("/wallet", async (req, res) => {
 
       case "ton": {
         const tonweb = new TonWeb();
-        const keypair = await tonweb.wallet.all.v3R2.keyPairFromSeed(child.privateKey);
-        address = TonWeb.utils.publicKeyToAddress(keypair.publicKey.toString("hex"));
+        const keyPair = await tonweb.wallet.all.v3R2.keyPairFromSeed(child.privateKey);
+        address = TonWeb.utils.publicKeyToAddress(keyPair.publicKey.toString("hex"));
         xpub = "N/A";
         break;
       }
