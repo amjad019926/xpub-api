@@ -7,7 +7,6 @@ import * as bitcoin from "bitcoinjs-lib";
 import TronWeb from "tronweb";
 import { Keypair } from "@solana/web3.js";
 import * as xrpl from "xrpl";
-import { mnemonicToWalletKey } from "@ton/crypto";
 
 const app = express();
 app.use(cors());
@@ -21,8 +20,7 @@ const pathMap = {
   trx: "m/44'/195'/0'/0",
   sol: "m/44'/501'/0'/0",
   ltc: "m/84'/2'/0'/0",
-  xrp: "m/44'/144'/0'/0",
-  ton: "m/44'/607'/0'/0"
+  xrp: "m/44'/144'/0'/0"
 };
 
 app.post("/wallet", async (req, res) => {
@@ -65,11 +63,6 @@ app.post("/wallet", async (req, res) => {
       case "xrp":
         const wallet = xrpl.Wallet.fromSeed(xrpl.generateFaucetWallet().seed);
         address = wallet.address;
-        xpub = "N/A";
-        break;
-      case "ton":
-        const tonKey = await mnemonicToWalletKey(mnemonic.split(" "));
-        address = tonKey.publicKey.toString("hex");
         xpub = "N/A";
         break;
       default:
