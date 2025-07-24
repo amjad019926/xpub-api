@@ -1,8 +1,8 @@
-// server.js (CommonJS version for full support) const express = require("express"); const cors = require("cors"); const bip39 = require("bip39"); const bip32 = require("bip32"); const { ethers } = require("ethers"); const bitcoin = require("bitcoinjs-lib"); const TronWeb = require("tronweb"); const { Keypair } = require("@solana/web3.js"); const xrpl = require("xrpl"); const { mnemonicToWalletKey } = require("@ton/crypto");
+
 
 const app = express(); app.use(cors()); app.use(express.json());
 
-const pathMap = { btc: "m/84'/0'/0'/0", eth: "m/44'/60'/0'/0", bnb: "m/44'/60'/0'/0", usdt: "m/44'/60'/0'/0", // same as BNB (BEP20) trx: "m/44'/195'/0'/0", sol: "m/44'/501'/0'/0", ltc: "m/84'/2'/0'/0", xrp: "m/44'/144'/0'/0", ton: "m/44'/607'/0'/0" };
+const pathMap = { btc: "m/84'/0'/0'/0", eth: "m/44'/60'/0'/0", bnb: "m/44'/60'/0'/0", usdt: "m/44'/60'/0'/0",ltc: "m/84'/2'/0'/0", xrp: "m/44'/144'/0'/0", ton: "m/44'/607'/0'/0" };
 
 app.post("/wallet", async (req, res) => { try { const { mnemonic, coin, index = 0 } = req.body;
 
@@ -61,8 +61,9 @@ switch (coin.toLowerCase()) {
   }
 
   case "ton": {
-    const key = await mnemonicToWalletKey(mnemonic.split(" "));
-    address = key.publicKey.toString("hex");
+    const tonweb = new TonWeb();
+    const keyPair = await tonweb.mnemonic.mnemonicToKeyPair(mnemonic.split(" "));
+    address = keyPair.publicKey.toString("hex");
     xpub = "N/A";
     break;
   }
