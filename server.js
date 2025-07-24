@@ -7,7 +7,6 @@ import * as bitcoin from "bitcoinjs-lib";
 import TronWeb from "tronweb";
 import { Keypair } from "@solana/web3.js";
 import * as xrpl from "xrpl";
-import TonWeb from "tonweb";
 
 const app = express();
 app.use(cors());
@@ -17,12 +16,11 @@ const pathMap = {
   btc: "m/84'/0'/0'/0",
   eth: "m/44'/60'/0'/0",
   bnb: "m/44'/60'/0'/0",
-  usdt: "m/44'/60'/0'/0",
+  usdt: "m/44'/60'/0'/0",  // USDT on BNB chain (BEP20)
   trx: "m/44'/195'/0'/0",
   sol: "m/44'/501'/0'/0",
   ltc: "m/84'/2'/0'/0",
-  xrp: "m/44'/144'/0'/0",
-  ton: "m/44'/607'/0'/0"
+  xrp: "m/44'/144'/0'/0"
 };
 
 app.post("/wallet", async (req, res) => {
@@ -34,10 +32,10 @@ app.post("/wallet", async (req, res) => {
     }
 
     const seed = await bip39.mnemonicToSeed(mnemonic);
+    const root = bip32.fromSeed(seed);
     const path = pathMap[coin.toLowerCase()];
     if (!path) return res.status(400).json({ error: "Unsupported coin" });
 
-    const root = bip32.fromSeed(seed);
     const child = root.derivePath(`${path}/${index}`);
     let address = "", xpub = "";
 
@@ -57,8 +55,8 @@ app.post("/wallet", async (req, res) => {
       case "usdt": {
         const wallet = new ethers.Wallet(child.privateKey);
         address = wallet.address;
-        const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic);
-        xpub = hdNode.neuter().extendedKey;
+        const node = ethers.HDNodeWallet.fromPhrase(mnemonic);
+        xpub = node.neuter().extendedKey;
         break;
       }
 
@@ -79,14 +77,6 @@ app.post("/wallet", async (req, res) => {
       case "xrp": {
         const wallet = xrpl.Wallet.fromSeed(xrpl.generateFaucetWallet().seed);
         address = wallet.address;
-        xpub = "N/A";
-        break;
-      }
-
-      case "ton": {
-        const tonweb = new TonWeb();
-        const keyPair = await tonweb.wallet.all.v3R2.keyPairFromSeed(child.privateKey);
-        address = TonWeb.utils.publicKeyToAddress(keyPair.publicKey.toString("hex"));
         xpub = "N/A";
         break;
       }
