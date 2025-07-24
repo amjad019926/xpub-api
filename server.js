@@ -1,61 +1,52 @@
-// server.js const express = require("express"); const { ethers } = require("ethers"); const bip39 = require("bip39"); const hdkey = require("ethereumjs-wallet/hdkey"); const bitcoin = require("bitcoinjs-lib"); const tronWeb = require("tronweb"); const bs58check = require("bs58check");
+// server.js import express from "express"; import { ethers } from "ethers"; import hdkey from "ethereumjs-wallet/hdkey"; import * as bip39 from "bip39"; import * as bip32 from "bip32"; import cors from "cors";
 
-const app = express(); app.use(express.json());
+const app = express(); app.use(express.json()); app.use(cors());
 
-const getWallet = async (mnemonic, coin) => { const seed = await bip39.mnemonicToSeed(mnemonic);
+app.post("/address", async (req, res) => { try { const { mnemonic, coin, index } = req.body; const pathMap = { btc: "m/84'/0'/0'/0", eth: "m/44'/60'/0'/0", bnb: "m/44'/714'/0'/0", trx: "m/44'/195'/0'/0", sol: "m/44'/501'/0'/0" };
 
-switch (coin.toLowerCase()) { case "eth": case "bnb": { const hdwallet = hdkey.fromMasterSeed(seed); const path = "m/44'/60'/0'/0/0"; const wallet = hdwallet.derivePath(path).getWallet(); const address = 0x${wallet.getAddress().toString("hex")}; const node = ethers.HDNodeWallet.fromPhrase(mnemonic); const xpub = node.neuter().extendedKey; return { address, xpub }; }
-
-case "btc": {
-  const network = bitcoin.networks.bitcoin;
-  const root = bitcoin.bip32.fromSeed(seed, network);
-  const child = root.derivePath("m/84'/0'/0'");
-  const xpub = child.neutered().toBase58();
-  const { address } = bitcoin.payments.p2wpkh({
-    pubkey: child.derive(0).derive(0).publicKey,
-    network,
-  });
-  return { address, xpub };
+if (!bip39.validateMnemonic(mnemonic)) {
+  return res.status(400).json({ error: "Invalid mnemonic" });
 }
 
-case "ltc": {
-  const network = bitcoin.networks.litecoin;
-  const root = bitcoin.bip32.fromSeed(seed, network);
-  const child = root.derivePath("m/84'/2'/0'");
-  const xpub = child.neutered().toBase58();
-  const { address } = bitcoin.payments.p2wpkh({
-    pubkey: child.derive(0).derive(0).publicKey,
-    network,
-  });
-  return { address, xpub };
+const seed = await bip39.mnemonicToSeed(mnemonic);
+const root = bip32.fromSeed(seed);
+const path = pathMap[coin] || pathMap.eth;
+const child = root.derivePath(`${path}/${index || 0}`);
+
+let address;
+switch (coin) {
+  case "btc": {
+    const { payments } = await import("bitcoinjs-lib");
+    const { address: addr } = payments.p2wpkh({ pubkey: child.publicKey });
+    address = addr;
+    break;
+  }
+  case "eth":
+  case "bnb": {
+    const wallet = new ethers.Wallet(child.privateKey);
+    address = wallet.address;
+    break;
+  }
+  case "trx": {
+    const TronWeb = (await import("tronweb")).default;
+    const tw = new TronWeb({
+      fullHost: "https://api.trongrid.io"
+    });
+    address = tw.address.fromPrivateKey(child.privateKey.toString("hex"));
+    break;
+  }
+  case "sol": {
+    const { Keypair } = await import("@solana/web3.js");
+    const kp = Keypair.fromSeed(child.privateKey.slice(0, 32));
+    address = kp.publicKey.toBase58();
+    break;
+  }
 }
 
-case "trx": {
-  const node = ethers.HDNodeWallet.fromPhrase(mnemonic);
-  const privateKey = node.derivePath("m/44'/195'/0'/0/0").privateKey;
-  const tronAddr = tronWeb.address.fromPrivateKey(privateKey);
-  return { address: tronAddr, xpub: "N/A for TRX" };
-}
+const xpub = root.derivePath(path).neutered().toBase58();
+res.json({ coin, xpub, address });
 
-case "sol": {
-  const ed25519 = require("ed25519-hd-key");
-  const bs58 = require("bs58");
-  const solanaWeb3 = require("@solana/web3.js");
-  const derived = ed25519.derivePath("m/44'/501'/0'/0'", seed);
-  const keypair = solanaWeb3.Keypair.fromSeed(derived.key);
-  return {
-    address: keypair.publicKey.toBase58(),
-    xpub: "N/A for SOL",
-  };
-}
+} catch (e) { res.status(500).json({ error: e.message }); } });
 
-default:
-  throw new Error("Unsupported coin");
+app.listen(3000, () => console.log("✅ Server running on port 3000"));
 
-} };
-
-app.post("/wallet", async (req, res) => { const { mnemonic, coin } = req.body; try { if (!bip39.validateMnemonic(mnemonic)) { return res.status(400).json({ error: "Invalid mnemonic" }); } const result = await getWallet(mnemonic, coin); res.json(result); } catch (err) { res.status(500).json({ error: err.message }); } });
-
-app.listen(3000, () => console.log("✅ Multi-coin wallet API running on port 3000"));
-
-                                             
