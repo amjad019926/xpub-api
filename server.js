@@ -2,11 +2,12 @@ import express from "express";
 import cors from "cors";
 import * as bip39 from "bip39";
 import * as bip32 from "bip32";
+import { Wallet as EthersWallet } from "ethers";
 import * as bitcoin from "bitcoinjs-lib";
-import { Wallet as EthWallet } from "ethers";
 import TronWeb from "tronweb";
-import { Keypair as SolKeypair } from "@solana/web3.js";
-import xrpl from "xrpl";
+import { Keypair } from "@solana/web3.js";
+import * as xrpl from "xrpl";
+import { mnemonicToWalletKey } from "@ton/crypto";
 
 const app = express();
 app.use(cors());
@@ -20,7 +21,8 @@ const pathMap = {
   trx: "m/44'/195'/0'/0",
   sol: "m/44'/501'/0'/0",
   ltc: "m/84'/2'/0'/0",
-  xrp: "m/44'/144'/0'/0"
+  xrp: "m/44'/144'/0'/0",
+  ton: "m/44'/607'/0'/0"
 };
 
 app.post("/wallet", async (req, res) => {
@@ -32,8 +34,7 @@ app.post("/wallet", async (req, res) => {
     const path = pathMap[coin.toLowerCase()];
     if (!path) return res.status(400).json({ error: "Unsupported coin" });
     const child = root.derivePath(`${path}/${index}`);
-    let address = "";
-    let xpub = "";
+    let address = "", xpub = "";
 
     switch (coin.toLowerCase()) {
       case "btc":
@@ -47,35 +48,40 @@ app.post("/wallet", async (req, res) => {
       case "eth":
       case "bnb":
       case "usdt":
-        const wallet = EthWallet.fromMnemonic(mnemonic, `${path}/${index}`);
-        address = wallet.address;
+        const evmWallet = EthersWallet.fromMnemonic(mnemonic, `${path}/${index}`);
+        address = evmWallet.address;
         xpub = "N/A";
         break;
       case "trx":
-        const tronWeb = new TronWeb({ fullHost: "https://api.trongrid.io" });
-        address = tronWeb.address.fromPrivateKey(child.privateKey.toString("hex"));
+        const tw = new TronWeb({ fullHost: "https://api.trongrid.io" });
+        address = tw.address.fromPrivateKey(child.privateKey.toString("hex"));
         xpub = "N/A";
         break;
       case "sol":
-        const kp = SolKeypair.fromSeed(child.privateKey.slice(0, 32));
+        const kp = Keypair.fromSeed(child.privateKey.slice(0, 32));
         address = kp.publicKey.toBase58();
         xpub = "N/A";
         break;
       case "xrp":
-        const walletXrp = xrpl.Wallet.fromSeed(xrpl.generateFaucetWallet().seed);
-        address = walletXrp.address;
+        const wallet = xrpl.Wallet.fromSeed(xrpl.generateFaucetWallet().seed);
+        address = wallet.address;
+        xpub = "N/A";
+        break;
+      case "ton":
+        const tonKey = await mnemonicToWalletKey(mnemonic.split(" "));
+        address = tonKey.publicKey.toString("hex");
         xpub = "N/A";
         break;
       default:
         return res.status(400).json({ error: "Unsupported coin" });
     }
 
-    res.json({ coin: coin.toUpperCase(), address, xpub });
+    res.json({ coin, address, xpub });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.listen(3000, () => {
-  console.log("Multi-coin wallet API running on port 3000");
+  console.log("✅ Multi-coin wallet API running on port 3000");
 });
