@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@solana/web3.js": "^1.95.2",
-    "bip32": "^5.1.0",
+    "bip32": "^2.0.6",
     "bip39": "^3.0.4",
     "bitcoinjs-lib": "^6.1.0",
     "cors": "^2.8.5",
