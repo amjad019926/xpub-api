@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import * as bip39 from "bip39";
 import * as bip32 from "bip32";
-import { Mnemonic, HDNodeWallet } from "ethers";
+import { Wallet as EthersWallet } from "ethers";
 import * as bitcoin from "bitcoinjs-lib";
 import TronWeb from "tronweb";
 import { Keypair } from "@solana/web3.js";
@@ -14,12 +14,12 @@ app.use(express.json());
 
 const pathMap = {
   btc: "m/84'/0'/0'/0",
-  ltc: "m/84'/2'/0'/0",
   eth: "m/44'/60'/0'/0",
   bnb: "m/44'/60'/0'/0",
   usdt: "m/44'/60'/0'/0",
   trx: "m/44'/195'/0'/0",
   sol: "m/44'/501'/0'/0",
+  ltc: "m/84'/2'/0'/0",
   xrp: "m/44'/144'/0'/0"
 };
 
@@ -27,7 +27,6 @@ app.post("/wallet", async (req, res) => {
   try {
     const { mnemonic, coin, index = 0 } = req.body;
     if (!bip39.validateMnemonic(mnemonic)) return res.status(400).json({ error: "Invalid mnemonic" });
-
     const seed = await bip39.mnemonicToSeed(mnemonic);
     const root = bip32.fromSeed(seed);
     const path = pathMap[coin.toLowerCase()];
@@ -47,10 +46,9 @@ app.post("/wallet", async (req, res) => {
       case "eth":
       case "bnb":
       case "usdt":
-        const evmPath = `${path}/${index}`;
-        const evmMnemonic = Mnemonic.fromPhrase(mnemonic);
-        const evmWallet = HDNodeWallet.fromMnemonic(evmMnemonic).derivePath(evmPath);
-        address = evmWallet.address;
+        const hdNode = EthersWallet.fromPhrase(mnemonic);
+        const derivedNode = hdNode.derivePath(`${path}/${index}`);
+        address = derivedNode.address;
         xpub = "N/A";
         break;
       case "trx":
@@ -64,8 +62,8 @@ app.post("/wallet", async (req, res) => {
         xpub = "N/A";
         break;
       case "xrp":
-        const xrpWallet = xrpl.Wallet.fromEntropy(child.privateKey);
-        address = xrpWallet.address;
+        const xrplWallet = xrpl.Wallet.fromSeed(child.toWIF());
+        address = xrplWallet.address;
         xpub = "N/A";
         break;
       default:
