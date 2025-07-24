@@ -2,10 +2,11 @@ import express from "express";
 import cors from "cors";
 import * as bip39 from "bip39";
 import * as bip32 from "bip32";
-import { ethers } from "ethers";
 import * as bitcoin from "bitcoinjs-lib";
+import { Wallet as EthWallet } from "ethers";
 import TronWeb from "tronweb";
-import { Keypair } from "@solana/web3.js";
+import { Keypair as SolKeypair } from "@solana/web3.js";
+import xrpl from "xrpl";
 
 const app = express();
 app.use(cors());
@@ -15,74 +16,66 @@ const pathMap = {
   btc: "m/84'/0'/0'/0",
   eth: "m/44'/60'/0'/0",
   bnb: "m/44'/60'/0'/0",
-  usdt: "m/44'/60'/0'/0", // BEP20 same path
+  usdt: "m/44'/60'/0'/0",
   trx: "m/44'/195'/0'/0",
   sol: "m/44'/501'/0'/0",
-  ltc: "m/84'/2'/0'/0"
+  ltc: "m/84'/2'/0'/0",
+  xrp: "m/44'/144'/0'/0"
 };
 
 app.post("/wallet", async (req, res) => {
   try {
     const { mnemonic, coin, index = 0 } = req.body;
-
-    if (!bip39.validateMnemonic(mnemonic)) {
-      return res.status(400).json({ error: "Invalid mnemonic" });
-    }
-
+    if (!bip39.validateMnemonic(mnemonic)) return res.status(400).json({ error: "Invalid mnemonic" });
     const seed = await bip39.mnemonicToSeed(mnemonic);
     const root = bip32.fromSeed(seed);
     const path = pathMap[coin.toLowerCase()];
     if (!path) return res.status(400).json({ error: "Unsupported coin" });
-
     const child = root.derivePath(`${path}/${index}`);
     let address = "";
     let xpub = "";
 
     switch (coin.toLowerCase()) {
       case "btc":
-      case "ltc": {
-        const network = coin === "ltc" ? bitcoin.networks.litecoin : bitcoin.networks.bitcoin;
-        const node = bip32.fromSeed(seed, network);
-        const childNode = node.derivePath(`${path}/${index}`);
-        address = bitcoin.payments.p2wpkh({ pubkey: childNode.publicKey, network }).address;
-        xpub = node.neutered().toBase58();
+        address = bitcoin.payments.p2wpkh({ pubkey: child.publicKey, network: bitcoin.networks.bitcoin }).address;
+        xpub = root.derivePath(path).neutered().toBase58();
         break;
-      }
-
+      case "ltc":
+        address = bitcoin.payments.p2wpkh({ pubkey: child.publicKey, network: bitcoin.networks.litecoin }).address;
+        xpub = root.derivePath(path).neutered().toBase58();
+        break;
       case "eth":
       case "bnb":
-      case "usdt": {
-        const wallet = new ethers.Wallet(child.privateKey);
+      case "usdt":
+        const wallet = EthWallet.fromMnemonic(mnemonic, `${path}/${index}`);
         address = wallet.address;
-        const node = ethers.HDNodeWallet.fromPhrase(mnemonic);
-        xpub = node.neuter().extendedKey;
-        break;
-      }
-
-      case "trx": {
-        const tw = new TronWeb({ fullHost: "https://api.trongrid.io" });
-        address = tw.address.fromPrivateKey(child.privateKey.toString("hex"));
         xpub = "N/A";
         break;
-      }
-
-      case "sol": {
-        const kp = Keypair.fromSeed(child.privateKey.slice(0, 32));
+      case "trx":
+        const tronWeb = new TronWeb({ fullHost: "https://api.trongrid.io" });
+        address = tronWeb.address.fromPrivateKey(child.privateKey.toString("hex"));
+        xpub = "N/A";
+        break;
+      case "sol":
+        const kp = SolKeypair.fromSeed(child.privateKey.slice(0, 32));
         address = kp.publicKey.toBase58();
         xpub = "N/A";
         break;
-      }
-
+      case "xrp":
+        const walletXrp = xrpl.Wallet.fromSeed(xrpl.generateFaucetWallet().seed);
+        address = walletXrp.address;
+        xpub = "N/A";
+        break;
       default:
         return res.status(400).json({ error: "Unsupported coin" });
     }
 
-    res.json({ coin, address, xpub });
+    res.json({ coin: coin.toUpperCase(), address, xpub });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.listen(3000, () => {
-  console.log("✅ Multi-coin wallet API running on port 3000");
+  console.log("Multi-coin wallet API running on port 3000");
 });
