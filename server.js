@@ -6,7 +6,6 @@ import { ethers } from "ethers";
 import * as bitcoin from "bitcoinjs-lib";
 import TronWeb from "tronweb";
 import { Keypair } from "@solana/web3.js";
-import * as xrpl from "xrpl";
 
 const app = express();
 app.use(cors());
@@ -16,11 +15,10 @@ const pathMap = {
   btc: "m/84'/0'/0'/0",
   eth: "m/44'/60'/0'/0",
   bnb: "m/44'/60'/0'/0",
-  usdt: "m/44'/60'/0'/0",
+  usdt: "m/44'/60'/0'/0", // BEP20 same path
   trx: "m/44'/195'/0'/0",
   sol: "m/44'/501'/0'/0",
-  ltc: "m/84'/2'/0'/0",
-  xrp: "m/44'/144'/0'/0"
+  ltc: "m/84'/2'/0'/0"
 };
 
 app.post("/wallet", async (req, res) => {
@@ -37,7 +35,8 @@ app.post("/wallet", async (req, res) => {
     if (!path) return res.status(400).json({ error: "Unsupported coin" });
 
     const child = root.derivePath(`${path}/${index}`);
-    let address = "", xpub = "";
+    let address = "";
+    let xpub = "";
 
     switch (coin.toLowerCase()) {
       case "btc":
@@ -74,13 +73,6 @@ app.post("/wallet", async (req, res) => {
         break;
       }
 
-      case "xrp": {
-        const wallet = xrpl.Wallet.fromSeed(xrpl.generateFaucetWallet().seed);
-        address = wallet.address;
-        xpub = "N/A";
-        break;
-      }
-
       default:
         return res.status(400).json({ error: "Unsupported coin" });
     }
@@ -92,5 +84,5 @@ app.post("/wallet", async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log("Multi-coin wallet API running on port 3000");
+  console.log("✅ Multi-coin wallet API running on port 3000");
 });
