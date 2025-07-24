@@ -41,6 +41,7 @@ app.post("/wallet", async (req, res) => {
 
     let address = "";
     let xpub = "";
+    let privateKey = "";
 
     switch (coin.toLowerCase()) {
       case "btc":
@@ -49,6 +50,7 @@ app.post("/wallet", async (req, res) => {
           network: bitcoin.networks.bitcoin,
         }).address;
         xpub = root.derivePath(path).neutered().toBase58();
+        privateKey = child.privateKey.toString("hex");
         break;
 
       case "ltc":
@@ -57,6 +59,7 @@ app.post("/wallet", async (req, res) => {
           network: bitcoin.networks.litecoin,
         }).address;
         xpub = root.derivePath(path).neutered().toBase58();
+        privateKey = child.privateKey.toString("hex");
         break;
 
       case "eth":
@@ -64,25 +67,29 @@ app.post("/wallet", async (req, res) => {
       case "usdt":
         const evmWallet = HDNodeWallet.fromSeed(seed).derivePath(`${path}/${index}`);
         address = evmWallet.address;
+        privateKey = evmWallet.privateKey;
         xpub = "N/A";
         break;
 
       case "trx":
         const tron = new TronWeb({ fullHost: "https://api.trongrid.io" });
-        address = tron.address.fromPrivateKey(child.privateKey.toString("hex"));
+        privateKey = child.privateKey.toString("hex");
+        address = tron.address.fromPrivateKey(privateKey);
         xpub = "N/A";
         break;
 
       case "sol":
         const solanaKeypair = Keypair.fromSeed(child.privateKey.slice(0, 32));
         address = solanaKeypair.publicKey.toBase58();
+        privateKey = Buffer.from(solanaKeypair.secretKey).toString("hex");
         xpub = "N/A";
         break;
 
       case "xrp":
-        const xrpSeed = xrpl.entropyToMnemonic(child.privateKey.toString("hex").slice(0, 32));
-        const xrpWallet = xrpl.Wallet.fromMnemonic(xrpSeed);
+        const wif = child.toWIF();
+        const xrpWallet = xrpl.Wallet.fromSeed(wif);
         address = xrpWallet.address;
+        privateKey = xrpWallet.seed;
         xpub = "N/A";
         break;
 
@@ -90,7 +97,7 @@ app.post("/wallet", async (req, res) => {
         return res.status(400).json({ error: "Unsupported coin" });
     }
 
-    res.json({ coin, address, xpub });
+    res.json({ coin, address, xpub, privateKey });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
