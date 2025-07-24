@@ -8,13 +8,13 @@
   },
   "dependencies": {
     "@solana/web3.js": "^1.95.2",
-    "bip32": "^2.0.6",
+    "bip32": "^6.0.2",
     "bip39": "^3.0.4",
     "bitcoinjs-lib": "^6.1.0",
     "cors": "^2.8.5",
-    "ethers": "^6.10.0",
+    "ethers": "^6.7.0",
     "express": "^4.19.2",
-    "tronweb": "^5.0.0",
+    "tronweb": "^5.2.0",
     "xrpl": "^2.11.1"
   }
 }
