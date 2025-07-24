@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import * as bip39 from "bip39";
-import bip32 from "bip32";
+import * as bip32 from "bip32"; // ✅ FIX: add * as
 import { ethers } from "ethers";
 import * as bitcoin from "bitcoinjs-lib";
 import TronWeb from "tronweb";
@@ -34,20 +34,20 @@ app.post("/wallet", async (req, res) => {
     if (!path) return res.status(400).json({ error: "Unsupported coin" });
 
     const child = root.derivePath(`${path}/${index}`);
-    let address, xpub;
+    let address = "", xpub = "";
 
     switch (coin.toLowerCase()) {
       case "btc":
       case "ltc": {
         const network =
           coin === "ltc" ? bitcoin.networks.litecoin : bitcoin.networks.bitcoin;
-        const node = bitcoin.bip32.fromSeed(seed, network);
-        const childNode = node.derivePath(path.split("/").join("/"));
-        xpub = node.neutered().toBase58();
+        const node = bip32.fromSeed(seed, network);
+        const childNode = node.derivePath(path + `/${index}`);
         address = bitcoin.payments.p2wpkh({
           pubkey: childNode.publicKey,
           network
         }).address;
+        xpub = node.neutered().toBase58();
         break;
       }
 
