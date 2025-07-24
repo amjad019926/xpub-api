@@ -10,7 +10,7 @@
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "bip39": "^3.0.4",
-    "bip32": "^2.0.6",
+    "bip32": "^2.0.6",       // ✅ most important
     "ethers": "^6.8.1",
     "bitcoinjs-lib": "^6.1.0",
     "tronweb": "^5.2.0",
